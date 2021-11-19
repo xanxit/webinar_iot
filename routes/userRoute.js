@@ -1,56 +1,57 @@
-const express= require('express');
-const app= express();
-
-const bcrypt= require("bcrypt");
-const User = require("./models/user")
-
-app.post("/register", async (req, res) => {
-
-    // Our register logic starts here
-    try {
-      // Get user input
-      const { first_name, last_name, email, password } = req.body;
-  
-      // Validate user input
-      if (!(email && password && first_name && last_name)) {
-        res.status(400).send("All input is required");
-      }
-  
-      // check if user already exist
-      // Validate if user exist in our database
-      const oldUser = await User.findOne({ email });
-  
-      if (oldUser) {
-        return res.status(409).send("User Already Exist. Please Login");
-      }
-  
-      //Encrypt user password
-      encryptedPassword = await bcrypt.hash(password, 10);
-  
-      // Create user in our database
-      const user = await User.create({
-        first_name,
-        last_name,
-        email: email.toLowerCase(), // sanitize: convert email to lowercase
-        password: encryptedPassword,
-      });
-  
-      // Create token
-      const token = jwt.sign(
-        { user_id: user._id, email },
-        process.env.TOKEN_KEY,
-        {
-          expiresIn: "2h",
-        }
-      );
-      // save user token
-      user.token = token;
-  
-      // return new user
-      res.status(201).json(user);
-    } catch (err) {
-      console.log(err);
+const express = require("express");
+const bcrypt = require("bcrypt");
+const expressAsyncHandler = require("express-async-handler");
+const userRouter = express.Router();
+const User = require("../models/user");
+const generateToken = require("../utils");
+require("dotenv").config();
+userRouter.post(
+  "/register",
+  expressAsyncHandler(async (req, res) => {
+    const Username = await User.findOne({ email: req.body.email });
+    if (Username) {
+      res.status(401).json("User already exists!");
     }
-    // Our register logic ends here
+    const user = new User({
+        firstname: req.body.firstname,
+        lastname: req.body.lastname,
+        email: req.body.email,  
+        password: bcrypt.hashSync(req.body.password, 8),
+        confirmpassword: bcrypt.hashSync(req.body.confirmpassword, 8)
+  })
+  try {
+    if (req.body.password === req.body.confirmpassword) {
+      user.save();
+    }
+  } catch (error) {
+    res.json("Password does not match with confirm Password");
+  }
+
+  res.status(200).json({
+    _id: user._id,
+    name: user.firstname,
+    email: user.email,
+    token: generateToken(user),
   });
-  
+  }));
+
+userRouter.post(
+  "/signin",
+  expressAsyncHandler(async (req, res) => {
+    const user = await User.findOne({ email: req.body.email });
+    if (user) {
+      if (bcrypt.compareSync(req.body.password, user.password)) {
+        res.json({
+          _id: user._id,
+          firstname: user.firstname,
+          email: user.email,
+          token: generateToken(user),
+        });
+        return;
+      }
+    }
+    res.status(401).json({ message: "Invalid Email or password" });
+  })
+);
+
+module.exports=userRouter;

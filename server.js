@@ -1,32 +1,25 @@
-const express = require('express'); 
-const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-dotenv.config();
-const app = express();
-const port = process.env.PORT || 1027;
-const userRoute= require('./routes/userRoute')
-const cors = require('cors');
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
+const express=require("express");
+const app= express();
+const cors = require("cors");
+const userRoute = require("./routes/userRoute")
+const mongoose= require("mongoose");
 app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ limit: "30mb", extended: true }));
 mongoose.connect(
-  "",
+  "mongodb://localhost:27017/apiauth",
   { 
     useNewUrlParser: true,
     useUnifiedTopology: true,
-    useCreateIndex: true,
   }
 );
-
 mongoose.connection.on("connected", function () {
   console.log("mongo db connected");
 });
-
-mongoose.set("useFindAndModify", false);
-
-app.use('/api',userRoute);
-
-const server = app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+app.get("/", (req,res)=>{
+  res.send("Heyy brother")
+})
+app.use("/api",userRoute)
+app.listen(1027,()=>{
+  console.log(`Server started at http://localhost:1027`);
+})
